@@ -15,8 +15,9 @@ public class Main {
         embeddedKafkaBroker.afterPropertiesSet();
 
 
-        SwingUtilities.invokeLater(()->new Chat("Kinga","chat"));
-        SwingUtilities.invokeLater(()->new Chat("Jakub","chat"));
+
+        SwingUtilities.invokeLater(()->new Chat("chat"));
+        SwingUtilities.invokeLater(()->new Chat("chat"));
 
 
 

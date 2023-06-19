@@ -20,41 +20,34 @@ public class Chat extends JFrame {
     private JTextField passwordField;
     private JTextField loginField;
     private JButton logOutButton;
-//    private final boolean loggedIn = false;
-//    private String loggedInUserName;
-    private final MessageConsumer messageConsumer;
+    private MessageConsumer messageConsumer;
     private final JTextField welcomeTextField;
+    public String userName ="";
 
-    public Chat(String id, String topic) throws HeadlessException {
+    public boolean created=false;
+    public String lastUser="";
+    public boolean userLogged = true;
+    public Chat(String topic) throws HeadlessException {
 
         message.setEnabled(false);
         sendButton.setEnabled(false);
         chatView.setEnabled(false);
-        messageConsumer = new MessageConsumer(topic, id);
+
         welcomeTextField = new JTextField();
         loginField.setText("Login");
         passwordField.setText("Password");
         message.setText("Your message here!");
         this.add(mainPanel);
         this.setVisible(true);
-        this.setTitle(id);
         this.pack();
+        this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         //przetwarzanie kazdej wiadomosci
-        Executors.newSingleThreadExecutor().submit(() -> {
-            while (true) {
-                messageConsumer.kafkaConsumer.poll(Duration.of(1, ChronoUnit.SECONDS)).forEach(
-                        m -> {
-                            System.out.println(m);
-                            chatView.append(m.value() + System.lineSeparator());
-                        }
-                );
-            }
-        });
+
         sendButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-                MessageProducer.send(new ProducerRecord<>(topic, currentTime + " : " + id + ": " + message.getText()));
+                MessageProducer.send(new ProducerRecord<>(topic, currentTime + " : " + userName + ": " + message.getText()));
                 message.setText("");
 
 
@@ -64,35 +57,62 @@ public class Chat extends JFrame {
         logOutButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(final ActionEvent e) {
-                JFrame currentFrame = (JFrame) SwingUtilities.getWindowAncestor(logOutButton);
-                currentFrame.dispose();
                 String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-                MessageProducer.send(new ProducerRecord<>(topic, currentTime ,"User "+id+" left chat"));
+                MessageProducer.send(new ProducerRecord<>(topic, currentTime ,"User "+userName+" left chat"));
+                loginButton.setEnabled(true);
+                logOutButton.setEnabled(false);
+                userLogged = false;
             }
         });
         loginButton.addActionListener(new ActionListener() {
+
             @Override
             public void actionPerformed(ActionEvent e) {
-
-                String userName = loginField.getText();
+                userName = loginField.getText();
                 String password = passwordField.getText();
-
+                logOutButton.setEnabled(true);
                 if (userName.isEmpty() || password.isEmpty()) {
                     JOptionPane.showMessageDialog(Chat.this, "Please enter username and password.", "Error", JOptionPane.ERROR_MESSAGE);
-                } else {
-                    String result = getUser(userName, password);
-                    if (result.startsWith("Znaleziono użytkownika.")) {
-                        String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
-                        MessageProducer.send(new ProducerRecord<>(topic, currentTime ,"User "+id+" joined the chat"));
-                        loginButton.setEnabled(false);
-                        message.setEnabled(true);
-                        sendButton.setEnabled(true);
-                        chatView.setEnabled(true);
+                }else {
+                    loginButton.setEnabled(false);
+                    message.setEnabled(true);
+                    sendButton.setEnabled(true);
+                    chatView.setEnabled(true);
+                    setTitle(userName);
+                    if(created) {
 
+                        if (userName.equals(lastUser)) {
+                            userLogged=true;
+                            ramExec();
+
+                        } else {
+                            String result = getUser(userName, password);
+                            if (result.startsWith("Znaleziono użytkownika.")) {
+                                String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+                                userLogged = true;
+                                messageConsumer = new MessageConsumer(topic, userName);
+                                ramExec();
+                                MessageProducer.send(new ProducerRecord<>(topic, currentTime, "User " + userName + " joined the chat"));
+                                lastUser=userName;
+                            }
+                        }
+                    }
+                    else{
+                        String result = getUser(userName, password);
+                        if (result.startsWith("Znaleziono użytkownika.")) {
+                            String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+                            userLogged = true;
+                            messageConsumer = new MessageConsumer(topic, userName);
+                            ramExec();
+                            MessageProducer.send(new ProducerRecord<>(topic, currentTime, "User " + userName + " joined the chat"));
+                            lastUser=userName;
+                            created=true;
+                        }
                     }
                 }
-
             }
+
+
         });
     }
 
@@ -145,5 +165,20 @@ public class Chat extends JFrame {
         return result;
     }
 
+    public void ramExec(){
+        Executors.newSingleThreadExecutor().submit(() -> {
+            while (userLogged) {
+                messageConsumer.kafkaConsumer.poll(Duration.of(1, ChronoUnit.SECONDS)).forEach(
+                        m -> {
+                            System.out.println(m);
+                            chatView.append(m.value() + System.lineSeparator());
+                        }
+                );
+
+            }
+
+
+        });
+    }
 
 }
