@@ -1,0 +1,12 @@
+Minimum za które można uzyskać do 20 punktów to:
+ - graficzny interfejs pozwalający korzystać z aplikacji
+ - możliwość komunikacji w formie czatu grupowego (topic & publish/subscribe)
+ - wykorzystanie MessageListenera (asynchroniczne czytanie)
+ - możliwość odczytu wiadomości które pojawiły się w trakcie nieaktywności, po dołączeniu do czatu (DurableSubscriber)
+ - zaimplementowane funkcjonalności niezbędne do działania czatu jak:
+- miejsce na wpisanie tekstu
+- guzik wyślij
+- odbiór wiadomości w czasie rzeczywistym
+- wyświetlanie odbieranych wiadomości wraz z informacją o autorze
+- wyświetlanie czasu wysłania wiadomości
+ - skorzytanie z OpenJMS
